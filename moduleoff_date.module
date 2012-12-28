@@ -79,7 +79,7 @@ function moduleoff_date_menu() {
   $items['moduleoff-date/%node/%/%/%/update'] = array(
     'title' => 'Update date',
     'page callback' => 'moduleoff_date_update',
-    'page arguments' => array(1, 2, 3, 4),
+    'page arguments' => array(1, 2, 3, 4, TRUE),
     'access callback' => 'node_access',
     'access arguments' => array(5, 1),
     'type' => MENU_CALLBACK,
@@ -89,7 +89,7 @@ function moduleoff_date_menu() {
 }
 
 /**
- * Updates the node with the current time, and refresh the node display.
+ * Updates a node's date field with the current time.
  *
  * @param stdClass $node
  *   A node object.
@@ -99,8 +99,10 @@ function moduleoff_date_menu() {
  *   A language code to use for rendering the node.
  * @param string $field_name
  *   The name of the field to update.
+ * @param bool $ajax
+ *   Whether or not this was called by an Ajax request, defaults to FALSE.
  */
-function moduleoff_date_update($node, $view_mode, $langcode, $field_name) {
+function moduleoff_date_update($node, $view_mode, $langcode, $field_name, $ajax = FALSE) {
   // Ensure that the field has an instance on this node's bundle.
   if (!$instance = field_info_instance('node', $field_name, $node->type)) {
     return;
@@ -131,12 +133,15 @@ function moduleoff_date_update($node, $view_mode, $langcode, $field_name) {
   ));
   node_save($node);
 
-  // Generate a new display for this node, respecting the view mode.
-  $build = node_view($node, $view_mode, $langcode);
+  // If this was called via Ajax, update the node display.
+  if ($ajax) {
+    // Generate a new display for this node, respecting the view mode.
+    $build = node_view($node, $view_mode, $langcode);
 
-  // Replace the existing node HTML with the new HTML.
-  $commands = array();
-  $commands[] = ajax_command_replace('#node-' . $node->nid, drupal_render($build));
-  print ajax_render($commands);
-  exit;
+    // Replace the existing node HTML with the new HTML.
+    $commands = array();
+    $commands[] = ajax_command_replace('#node-' . $node->nid, drupal_render($build));
+    print ajax_render($commands);
+    exit;
+  }
 }
