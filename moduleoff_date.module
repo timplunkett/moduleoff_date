@@ -29,6 +29,14 @@ function moduleoff_date_node_view($node, $view_mode, $langcode) {
   // Check the fields attached to the node for date fields with our setting.
   foreach (field_info_instances('node', 'article') as $field_name => $instance) {
     if (!empty($instance['settings']['moduleoff_date'])) {
+      // Provide a better title if the field currently has a value.
+      $field_langcode = field_language('node', $node, $field_name, $langcode);
+      if (empty($node->{$field_name}[$field_langcode])) {
+        $title = t("Set %label to today's date", array('%label' => $instance['label']));
+      }
+      else {
+        $title = t("Update %label to today's date", array('%label' => $instance['label']));
+      }
       // Add an Ajax link to update the date field.
       $node->content['moduleoff_date'][$field_name] = array(
         '#theme_wrappers' => array('container'),
@@ -38,7 +46,7 @@ function moduleoff_date_node_view($node, $view_mode, $langcode) {
           ),
         ),
         '#type' => 'link',
-        '#title' => t('Set %label as Today', array('%label' => $instance['label'])),
+        '#title' => $title,
         '#href' => 'moduleoff-date/' . $node->nid . '/' . $view_mode . '/' . $langcode . '/' . $field_name . '/update',
         '#options' => array(
           'html' => TRUE,
