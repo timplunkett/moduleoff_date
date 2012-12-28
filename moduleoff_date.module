@@ -1,0 +1,134 @@
+<?php
+
+/**
+ * @file
+ * Adds a link to article nodes that updates a date field to today using Ajax.
+ */
+
+/**
+ * Implements hook_date_field_instance_settings_form_alter().
+ */
+function moduleoff_date_date_field_instance_settings_form_alter(&$form, $context) {
+  // Add a checkbox for this instance to determine if a link should be provided.
+  $form['moduleoff_date'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Provide a link to update this field to the current time'),
+    '#default_value' => !empty($context['instance']['settings']['moduleoff_date']),
+  );
+}
+
+/**
+ * Implements hook_node_view().
+ */
+function moduleoff_date_node_view($node, $view_mode, $langcode) {
+  // Only add the link to article nodes for privileged users.
+  if ($node->type != 'article' || !node_access('update', $node)) {
+    return;
+  }
+
+  // Check the fields attached to the node for date fields with our setting.
+  foreach (field_info_instances('node', 'article') as $field_name => $instance) {
+    if (!empty($instance['settings']['moduleoff_date'])) {
+      // Add an Ajax link to update the date field.
+      $node->content['moduleoff_date'][$field_name] = array(
+        '#theme_wrappers' => array('container'),
+        '#attributes' => array(
+          'class' => array(
+            'moduleoff-date-' . drupal_html_class($field_name),
+          ),
+        ),
+        '#type' => 'link',
+        '#title' => t('Set %label as Today', array('%label' => $instance['label'])),
+        '#href' => 'moduleoff-date/' . $node->nid . '/' . $view_mode . '/' . $langcode . '/' . $field_name . '/update',
+        '#options' => array(
+          'html' => TRUE,
+          'attributes' => array(
+            'class' => array(
+              'use-ajax',
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
+  // If at least one Ajax link was added, add the Ajax library.
+  if (!empty($node->content['moduleoff_date'])) {
+    $node->content['moduleoff_date']['#attached'] = array(
+      'library' => array(
+        array('system', 'drupal.ajax'),
+      ),
+    );
+  }
+}
+
+/**
+ * Implements hook_menu().
+ */
+function moduleoff_date_menu() {
+  $items = array();
+
+  $items['moduleoff-date/%node/%/%/%/update'] = array(
+    'title' => 'Update date',
+    'page callback' => 'moduleoff_date_update',
+    'page arguments' => array(1, 2, 3, 4),
+    'access callback' => 'node_access',
+    'access arguments' => array(5, 1),
+    'type' => MENU_CALLBACK,
+  );
+
+  return $items;
+}
+
+/**
+ * Updates the node with the current time, and refresh the node display.
+ *
+ * @param stdClass $node
+ *   A node object.
+ * @param string $view_mode
+ *   The view mode to display, e.g., 'full', 'teaser'.
+ * @param string $langcode
+ *   A language code to use for rendering the node.
+ * @param string $field_name
+ *   The name of the field to update.
+ */
+function moduleoff_date_update($node, $view_mode, $langcode, $field_name) {
+  // Ensure that the field has an instance on this node's bundle.
+  if (!$instance = field_info_instance('node', $field_name, $node->type)) {
+    return;
+  }
+
+  // Get the generic field info.
+  $field_info = field_info_field($field_name);
+  // Determine the field's language, this can differ from the node's language.
+  $field_langcode = field_language('node', $node, $field_name, $langcode);
+
+  // Convert the UNIX timestamp into a full date object.
+  $object = new DateObject(REQUEST_TIME / 1000, date_get_timezone($field_info['settings']['tz_handling']), DATE_FORMAT_UNIX);
+  // Remove any unwanted parts of the date, according to the field settings.
+  $object->limitGranularity($field_info['settings']['granularity']);
+  // If the field settings specify a time increment, round to it.
+  if ($object->validGranularity($field_info['settings']['granularity'])) {
+    date_increment_round($object, $instance['widget']['settings']['increment']);
+  }
+  // Adjust to the correct storage timezone.
+  date_timezone_set($object, timezone_open(date_get_timezone_db($field_info['settings']['tz_handling'])));
+  // Generate a formatted date according to the field settings.
+  $date = $object->format(date_type_format($field_info['type']));
+
+  // Assign the generated date to the field, overwriting existing values.
+  $node->{$field_name}[$field_langcode] = array(array(
+    'value' => $date,
+    'value2' => $date,
+  ));
+  node_save($node);
+
+  // Generate a new display for this node, respecting the view mode.
+  $build = node_view($node, $view_mode, $langcode);
+
+  // Replace the existing node HTML with the new HTML.
+  $commands = array();
+  $commands[] = ajax_command_replace('#node-' . $node->nid, drupal_render($build));
+  print ajax_render($commands);
+  exit;
+}
