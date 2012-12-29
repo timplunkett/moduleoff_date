@@ -110,27 +110,23 @@ function moduleoff_date_update($node, $view_mode, $langcode, $field_name, $ajax 
 
   // Get the generic field info.
   $field_info = field_info_field($field_name);
+
+  // Create a date object for the current time.
+  $date = date_now(date_get_timezone($field_info['settings']['tz_handling']));
+  // Adjust to the correct storage timezone.
+  date_timezone_set($date, timezone_open(date_get_timezone_db($field_info['settings']['tz_handling'])));
+  // Remove any unwanted parts of the date, according to the field settings.
+  $date->limitGranularity($field_info['settings']['granularity']);
+  // If the field settings specify a time increment, round to it.
+  if ($date->validGranularity($field_info['settings']['granularity'])) {
+    date_increment_round($date, $instance['widget']['settings']['increment']);
+  }
+
   // Determine the field's language, this can differ from the node's language.
   $field_langcode = field_language('node', $node, $field_name, $langcode);
-
-  // Convert the UNIX timestamp into a full date object.
-  $object = new DateObject(REQUEST_TIME / 1000, date_get_timezone($field_info['settings']['tz_handling']), DATE_FORMAT_UNIX);
-  // Remove any unwanted parts of the date, according to the field settings.
-  $object->limitGranularity($field_info['settings']['granularity']);
-  // If the field settings specify a time increment, round to it.
-  if ($object->validGranularity($field_info['settings']['granularity'])) {
-    date_increment_round($object, $instance['widget']['settings']['increment']);
-  }
-  // Adjust to the correct storage timezone.
-  date_timezone_set($object, timezone_open(date_get_timezone_db($field_info['settings']['tz_handling'])));
-  // Generate a formatted date according to the field settings.
-  $date = $object->format(date_type_format($field_info['type']));
-
-  // Assign the generated date to the field, overwriting existing values.
-  $node->{$field_name}[$field_langcode] = array(array(
-    'value' => $date,
-    'value2' => $date,
-  ));
+  // Generate a formatted date according to the field settings, and assign it to
+  // the field, overwriting existing values.
+  $node->{$field_name}[$field_langcode] = array(array('value' => $date->format(date_type_format($field_info['type']))));
   node_save($node);
 
   // If this was called via Ajax, update the node display.
