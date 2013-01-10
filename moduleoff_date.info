@@ -1,5 +1,5 @@
 name = Module Off: Date
-description = Adds a link to article nodes that updates a date field to today using Ajax.
+description = Adds a link to nodes that updates a date field to today using Ajax.
 core = 7.x
 package = Module Off
 dependencies[] = date
