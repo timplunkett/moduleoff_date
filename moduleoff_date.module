@@ -141,3 +141,13 @@ function moduleoff_date_update($node, $view_mode, $langcode, $field_name, $ajax 
     exit;
   }
 }
+
+/**
+ * Implements hook_help().
+ */
+function moduleoff_date_help($path, $arg) {
+  switch ($path) {
+    case 'admin/help#moduleoff_date':
+      return '<p>' . t("'Module Off: Date' allows the addition of a link to for a date field that will update the field value to the current time, using Ajax. When configuring a date field, you will see a checkbox labeled 'Provide a link to update this field to the current time'.") . '</p>';
+  }
+}
