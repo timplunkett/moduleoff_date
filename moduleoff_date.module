@@ -9,6 +9,11 @@
  * Implements hook_date_field_instance_settings_form_alter().
  */
 function moduleoff_date_date_field_instance_settings_form_alter(&$form, $context) {
+  // @todo Currently we only support nodes.
+  if ($context['instance']['entity_type'] != 'node') {
+    return;
+  }
+
   // Add a checkbox for this instance to determine if a link should be provided.
   $form['moduleoff_date'] = array(
     '#type' => 'checkbox',
