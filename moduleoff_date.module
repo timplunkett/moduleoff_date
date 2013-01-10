@@ -74,6 +74,28 @@ function moduleoff_date_node_view($node, $view_mode, $langcode) {
 }
 
 /**
+ * Implements hook_field_extra_fields().
+ */
+function moduleoff_date_field_extra_fields() {
+  $extra = array();
+  foreach (field_info_instances('node') as $node_type => $node_info) {
+    foreach ($node_info as $field_name => $instance) {
+      if (!empty($instance['settings']['moduleoff_date'])) {
+        $extra['node'][$node_type] = array(
+          'display' => array(
+            "moduleoff_date_$field_name" => array(
+              'label' => t('Module Off: Date link for @field_name', array('@field_name' => $instance['label'])),
+              'weight' => 0,
+            ),
+          )
+        );
+      }
+    }
+  }
+  return $extra;
+}
+
+/**
  * Implements hook_menu().
  */
 function moduleoff_date_menu() {
